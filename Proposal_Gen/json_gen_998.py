@@ -25,71 +25,66 @@ data_to_save = \
             """Spring""",
         # -----------------------------------------------------------------------------------------------------------------------
         "project_name":
-            """Neural Network Design Streamlit App """,
+            """Healthcare Shopping in VT """,
         # -----------------------------------------------------------------------------------------------------------------------
         "Objective":
             """ 
-            The goal of this project is to convert all the Neural Network Design Demos from Pyqt to streamlit App. 
-            Currently all the demos are in pyqt environment and can be installed by pip (https://pypi.org/project/nndesigndemos/).
-            In the project, you job is is converting All the current demos which is written in python and uses pyqt widgets to 
-            Streamlit webapp. And then create a container that can be deployed in the web domain. The final product is using the 
-            demos by providing a user a link that opens up a webpage and all the demos will be accessed through internet.
+            The purpose of this test is to determine whether the Jan 1, 2021 CMS rule change on hospital price transparency lead to venue shopping for healthcare.
             """,
         # -----------------------------------------------------------------------------------------------------------------------
         "Dataset":
             """
-            No Dataset is needed for this project .  
+            Vermont All-Payer Claims Database.  
             """,
         # -----------------------------------------------------------------------------------------------------------------------
         "Rationale":
             """
-            This project is going to help students to use the Neural Network book demos in web format and it would easier for students 
-            to access them. This is project is educational case that helps Neural Network Community to understand Neural Network
-            in more conceptual way.
+            Significant price variation exists in Vermont hospitals. Cost of echocardiograph ranges from 310-3,000 in Vermont. (2021)
+            There is no appreciable quality difference between locations. The purpose of this is to determine whether
+            greater transparency led to more venue shopping for patients, which could be a key mechanism for reducing costs in one of the most
+            expensive states in the country.
             """,
         # -----------------------------------------------------------------------------------------------------------------------
         "Approach":
             """
             I plan on approaching this capstone through several steps.  
 
-            1. Familiarize yourself with Streamlit environment.
-            2. Design the web layout with 2 books and all the chapters.  
-            3. Create a modular widgets can be used across all the chapters (Reusable).
-            4. Create a documentation from the begging till the end of the product.
-            5. After all demos is done, testing it in local machine.
-            6. Create the container that can be used in deployment.
-            7. Deploy it on a server that can be accessed over the internet. 
+            1. Lit review on price transparency and venue shopping. 
+            2. Data cleaning and merging
+            2. Generate descriptive statistics on price variation and the sample population
+            3. Identify key variables
+            4. Create model (probably DID) 
+            5. Robustness testing, writeup
             """,
         # -----------------------------------------------------------------------------------------------------------------------
         "Timeline":
             """
             This a rough time line for this project:  
 
-            - (1 Weeks) Streamlit environment.  
-            - (2 Weeks) Web layout  
-            - (1 Weeks) Modular widgets  
-            - (4 Weeks) Convert all the demos 
-            - (2 Weeks) Container  
-            - (2 Weeks) Web Deployment
+            - (2 Weeks) Lit review 
+            - (1 Weeks) Web layout  
+            - (1 Weeks) Data cleaning and merging  
+            - (4 Weeks) Generating model, robustness testing 
+            - (2 Weeks) Creating writeup 
+            - (2 Weeks) Finalization and editing
             - (2 Weeks) Documentation
             """,
         # -----------------------------------------------------------------------------------------------------------------------
         "Expected Number Students":
             """
-            For this project maximum 2 students can work on it.  
+            One (1). 
             """,
         # -----------------------------------------------------------------------------------------------------------------------
         "Possible Issues":
             """
-            The challenge is on creating modular widgets and create a same layout as the book. Also, web deployment and
-            containerizing it is also another challenge. 
+            Data usage and access. The data is proprietary, and most of the work will be conducted locally on another computer.
             """,
         # -----------------------------------------------------------------------------------------------------------------------
-        "Proposed by": "Dr. Amir Jafari",
-        "Proposed by email": "ajafari@gwu.edu",
-        "instructor": "Amir Jafari",
-        "instructor_email": "ajafari@gmail.com",
-        "github_repo": "https://github.com/amir-jafari/Capstone",
+        "Proposed by": "Daniel Bandler",
+        "Proposed by email": "dbandler@gwu.edu",
+        "instructor": "Sushovan Majhi",
+        "instructor_email": "SushovanMajhi@gwu.edu",
+        "github_repo": "https://github.com/GW-datasci/25-spring-DBandler/blob/adba7de72079b24c85d129317a9451efaf0a5754/Readme.md",
         # -----------------------------------------------------------------------------------------------------------------------
     }
 os.makedirs(

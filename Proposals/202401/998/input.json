@@ -1,0 +1,18 @@
+{
+  "Version": "998",
+  "Year": "2024",
+  "Semester": "Spring",
+  "project_name": "Healthcare Shopping in VT ",
+  "Objective": " \n            The purpose of this test is to determine whether the Jan 1, 2021 CMS rule change on hospital price transparency lead to venue shopping for healthcare.\n            ",
+  "Dataset": "\n            Vermont All-Payer Claims Database.  \n            ",
+  "Rationale": "\n            Significant price variation exists in Vermont hospitals. Cost of echocardiograph ranges from 310-3,000 in Vermont. (2021)\n            There is no appreciable quality difference between locations. The purpose of this is to determine whether\n            greater transparency led to more venue shopping for patients, which could be a key mechanism for reducing costs in one of the most\n            expensive states in the country.\n            ",
+  "Approach": "\n            I plan on approaching this capstone through several steps.  \n\n            1. Lit review on price transparency and venue shopping. \n            2. Data cleaning and merging\n            2. Generate descriptive statistics on price variation and the sample population\n            3. Identify key variables\n            4. Create model (probably DID) \n            5. Robustness testing, writeup\n            ",
+  "Timeline": "\n            This a rough time line for this project:  \n\n            - (2 Weeks) Lit review \n            - (1 Weeks) Web layout  \n            - (1 Weeks) Data cleaning and merging  \n            - (4 Weeks) Generating model, robustness testing \n            - (2 Weeks) Creating writeup \n            - (2 Weeks) Finalization and editing\n            - (2 Weeks) Documentation\n            ",
+  "Expected Number Students": "\n            One (1). \n            ",
+  "Possible Issues": "\n            Data usage and access. The data is proprietary, and most of the work will be conducted locally on another computer.\n            ",
+  "Proposed by": "Daniel Bandler",
+  "Proposed by email": "dbandler@gwu.edu",
+  "instructor": "Sushovan Majhi",
+  "instructor_email": "SushovanMajhi@gwu.edu",
+  "github_repo": "https://github.com/GW-datasci/25-spring-DBandler/blob/adba7de72079b24c85d129317a9451efaf0a5754/Readme.md"
+}
