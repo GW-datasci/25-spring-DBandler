@@ -2,5 +2,4 @@
 ## Capstone Course GitHub Repo template
 
 
-
-Modified by E. Lo for DATS-4001
+Daniel Bandler
