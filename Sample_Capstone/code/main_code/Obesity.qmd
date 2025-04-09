@@ -1,0 +1,123 @@
+---
+title: "Diabetes"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+library(tidyverse)
+obesity <- read_csv("~/Downloads/DataSciCapstoneDataset - Sheet1.csv")
+```
+
+```{r}
+ggplot(obesity, aes(x = Year, y = median_age, color = Treatment)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +  
+  labs(
+    title = "Median Age Trends by County (Linear Regression)",
+    x = "Year",
+    y = "Median Age"
+  ) +
+  theme_minimal()
+```
+
+
+```{r}
+
+
+obesity$Post <- ifelse(obesity$Year >= 2017, 1, 0)
+
+did_model <- lm(Obesity ~ Treatment * Post +factor(Year) +factor(County), data = obesity)
+summary(did_model)
+
+
+
+did_model2 <- lm(Diabetes ~ Treatment * Post +factor(Year) +factor(County), data = obesity)
+summary(did_model2)
+```
+```{r}
+
+summary_df <- obesity %>%
+  group_by(Year, Treatment) %>%
+  summarise(
+    mean_obesity = mean(Obesity, na.rm = TRUE),
+    se_obesity = sd(Obesity, na.rm = TRUE) / sqrt(n())
+  )
+
+
+ggplot(summary_df, aes(x = Year, y = mean_obesity, color = Treatment, group = Treatment)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = mean_obesity - se_obesity,
+                    ymax = mean_obesity + se_obesity),
+                width = 0.3) +geom_vline(xintercept = 2017, linetype = "dashed")+
+  labs(
+    title = "Difference-in-Differences: Obesity Trends",
+    y = "Average Obesity Rate",
+    x = "Year",
+    color = "Group"
+  ) +
+  theme_minimal(base_size = 14)
+
+ggplot(obesity, aes(x = Year, y = Obesity, color = County, group = County)) +geom_line() +theme_minimal()
+```
+
+
+
+```{r}
+counties <- read_csv("~/Downloads/Maryland2020.csv")
+counties2023 <- read_csv("~/Downloads/Maryland2023.csv")
+counties <- counties %>% filter(COUNTY %in% c("510")) %>% filter(YEAR >= 4) %>% filter(YEAR != 13) %>%  mutate(YEAR = ifelse(YEAR == 14, 13, YEAR)) %>%
+  mutate(YEAR = YEAR + 2007)
+counties2023 <- counties2023 %>% filter(COUNTY %in% c("510"))  %>% filter(YEAR >= 3) %>%
+  mutate(YEAR = YEAR + 2018)
+
+counties <- bind_rows(counties, counties2023)
+
+counties <- counties %>%
+  mutate(
+    under_18 = UNDER5_TOT + AGE513_TOT + AGE1417_TOT,
+    over_64 = AGE65PLUS_TOT,
+    working_age = POPESTIMATE - under_18 - over_64,
+    age_dependency_ratio = ((under_18 + over_64) / working_age) * 100
+  ) %>%
+  mutate(
+    child_dependency_ratio = (under_18 / working_age) * 100
+  ) %>%
+  mutate(
+    old_age_dependency_ratio = (over_64 / working_age) * 100
+  )
+median_age_by_county <- counties %>% 
+  group_by(CTYNAME, YEAR) %>%
+  summarise(
+    median_age = median(MEDIAN_AGE_TOT, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+print(median_age_by_county)
+
+```
+My county list: 
+NY: New York County, Bronx, Kings, Queens
+NJ: Hudson, Essex
+Pennsylvania: Philadelphia
+Massachusetts: Suffolk
+Maryland: Baltimore City
+
+```{r}
+
+library(tidycensus)
+census_api_key("API_KEY")
+
+#Thank you census bureau for firing the person responsible for maintaining AI key infrastructure
+
+
+```
