@@ -4,17 +4,11 @@ format: html
 editor: visual
 ---
 
-## Quarto
-
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
-
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+Week updates: I updated my Code, integrated BRFSS data and plotted synthetic controls. I intend to improve that model, so far results seem insignificant.
 
 ```{r}
 library(tidyverse)
-obesity <- read_csv("~/Downloads/DataSciCapstoneDataset - Sheet1.csv")
+obesity <- read_csv("~/Downloads/DataSciCapstoneDataset - Sheet1-2.csv")
 ```
 
 ```{r}
@@ -29,20 +23,24 @@ ggplot(obesity, aes(x = Year, y = median_age, color = Treatment)) +
   theme_minimal()
 ```
 
-
 ```{r}
 
 
 obesity$Post <- ifelse(obesity$Year >= 2017, 1, 0)
 
-did_model <- lm(Obesity ~ Treatment * Post +factor(Year) +factor(County), data = obesity)
+did_model <- lm(log1p(Obesity) ~ Post * Treatment +factor(Year)+ factor(County) + Income_Per_Cap, data = obesity) 
+
 summary(did_model)
 
 
+did_model2 <- lm(log1p(Diabetes) ~ Post * Treatment +factor(Year)+ factor(County), data = obesity) 
 
-did_model2 <- lm(Diabetes ~ Treatment * Post +factor(Year) +factor(County), data = obesity)
 summary(did_model2)
+
+
+
 ```
+
 ```{r}
 
 summary_df <- obesity %>%
@@ -65,59 +63,205 @@ ggplot(summary_df, aes(x = Year, y = mean_obesity, color = Treatment, group = Tr
     x = "Year",
     color = "Group"
   ) +
-  theme_minimal(base_size = 14)
+  theme_minimal(base_size = 14) +geom_smooth()
 
 ggplot(obesity, aes(x = Year, y = Obesity, color = County, group = County)) +geom_line() +theme_minimal()
 ```
 
+```{r}
+# counties <- read_csv("~/Downloads/Maryland2020.csv")
+# counties2023 <- read_csv("~/Downloads/Maryland2023.csv")
+# counties <- counties %>% filter(COUNTY %in% c("510")) %>% filter(YEAR >= 4) %>% filter(YEAR != 13) %>%  mutate(YEAR = ifelse(YEAR == 14, 13, YEAR)) %>%
+#   mutate(YEAR = YEAR + 2007)
+# counties2023 <- counties2023 %>% filter(COUNTY %in% c("510"))  %>% filter(YEAR >= 3) %>%
+#   mutate(YEAR = YEAR + 2018)
+# 
+# counties <- bind_rows(counties, counties2023)
+# 
+# counties <- counties %>%
+#   mutate(
+#     under_18 = UNDER5_TOT + AGE513_TOT + AGE1417_TOT,
+#     over_64 = AGE65PLUS_TOT,
+#     working_age = POPESTIMATE - under_18 - over_64,
+#     age_dependency_ratio = ((under_18 + over_64) / working_age) * 100
+#   ) %>%
+#   mutate(
+#     child_dependency_ratio = (under_18 / working_age) * 100
+#   ) %>%
+#   mutate(
+#     old_age_dependency_ratio = (over_64 / working_age) * 100
+#   )
+# median_age_by_county <- counties %>% 
+#   group_by(CTYNAME, YEAR) %>%
+#   summarise(
+#     median_age = median(MEDIAN_AGE_TOT, na.rm = TRUE),
+#     .groups = "drop"
+#   )
+# 
+# print(median_age_by_county)
+
+```
+
+My county list: NY: New York County, Bronx, Kings, Queens NJ: Hudson, Essex Pennsylvania: Philadelphia Massachusetts: Suffolk Maryland: Baltimore City
+
+```{r}
+# 
+# library(tidycensus)
+# census_api_key("API_KEY")
+# 
+# #Thank you census bureau for firing the person responsible for maintaining AI key infrastructure
+# 
+
+```
+
+```{r}
+
+library(Synth)
+
+
+df <- read_csv("~/Downloads/cleaned_obesity_data.csv") %>%
+  mutate(unit_id = as.numeric(as.factor(County))) %>%
+  select(unit_id, County, Year, Obesity, Diabetes, median_age, PoorFairHealth) %>%
+  filter(!is.na(Obesity), !is.na(Diabetes), !is.na(median_age), !is.na(PoorFairHealth)) %>%
+  as.data.frame()
+
+
+philly_id <- df %>% filter(County == "Philadelphia") %>% pull(unit_id) %>% unique()
+control_ids <- df %>% filter(County != "Philadelphia") %>% pull(unit_id) %>% unique()
+
+
+dataprep_out <- dataprep(
+  foo = df,
+  predictors = c("Diabetes", "median_age", "PoorFairHealth"),
+  dependent = "Obesity",
+  unit.variable = "unit_id",
+  time.variable = "Year",
+  treatment.identifier = philly_id,
+  controls.identifier = control_ids,
+  time.predictors.prior = 2011:2016,
+  time.optimize.ssr = 2011:2016,
+  time.plot = 2011:2021
+)
+
+
+synth_out <- synth(dataprep_out)
+
+
+path.plot(
+  synth.res = synth_out,
+  dataprep.res = dataprep_out,
+  Ylab = "Obesity Rate",
+  Xlab = "Year",
+  Legend = c("Philadelphia", "Synthetic Control"),
+  Legend.position = "bottomright"
+)
+
+```
+
+```{r}
+library(janitor)
+brfss <- read_csv("~/Downloads/Behavioral_Risk_Factors__Selected_Metropolitan_Area_Risk_Trends__SMART__MMSA_Age-adjusted_Prevalence_Data__2011_to_Present__20250414.csv") 
+
+
+brfss <- brfss %>%
+  clean_names() %>%
+  mutate(year = as.integer(year),
+         locationdesc = str_trim(locationdesc))
+
+#Have some form of sugar tax, not properly controls
+excluded_divisions <- c(
+  "Philadelphia, PA Metropolitan Division",
+  "San Francisco-Redwood City-South San Francisco, CA Metropolitan Division",
+  "Oakland-Hayward-Berkeley, CA Metropolitan Division",
+  "Seattle-Bellevue-Everett, WA Metropolitan Division",
+  "Washington-Arlington-Alexandria, DC-VA-MD-WV Metropolitan Division",
+  "Boulder, CO Metropolitan Division"
+)
+
+
+
+
+brfss_divisions <- brfss %>%
+  filter(str_detect(locationdesc, "Division"))
+treated_mmsa <- "Philadelphia, PA Metropolitan Division"
+
+brfss_division_filtered <- brfss_divisions %>%
+  filter(year >= 2011) %>%
+  mutate(treated = if_else(locationdesc == treated_mmsa, 1, 0),
+         post = if_else(year >= 2017, 1, 0))
+```
+
+```{r}
+obesity_df <- brfss_division_filtered %>%
+  filter(
+    question == "Weight classification by Body Mass Index (BMI) (variable calculated from one or more BRFSS questions)",
+    response == "Obese (BMI 30.0 - 99.8)",
+    break_out == "Overall"
+  ) %>%
+  select(year, locationdesc, data_value, treated, post)
+
+
+required_years <- 2011:2022
+
+valid_divisions_strict <- obesity_df %>%
+  group_by(locationdesc) %>%
+  summarise(n_years = n_distinct(year),
+            years = list(unique(year))) %>%
+  filter(n_years == length(required_years)) %>%
+  pull(locationdesc)
+
+obesity_df_strict <- obesity_df %>% filter(year < 2023) %>%
+  filter(locationdesc %in% valid_divisions_strict) 
+
+library(modelsummary)
+model <- lm(data_value ~ treated * post + factor(locationdesc) + factor(year), data = obesity_df_strict)
+
+
+modelsummary(model,
+  title = "Difference-in-Differences: Effect of Soda Tax on Obesity",
+  coef_map = c(
+    "treated" = "Philadelphia (Treated)",
+    "post" = "Post-2017",
+    "treated:post" = "Treated × Post (DiD Estimate)"
+  ),
+  gof_omit = "Adj|AIC|BIC|Log|F|RMSE", # hides extra stats
+  statistic = "({std.error})",         # show standard errors in parentheses
+  stars = TRUE
+)
+summary(model)
+ggplot(obesity_df_strict, aes(x = year, y = data_value, color = as.factor(treated))) +
+  stat_summary(fun = mean, geom = "line") +
+  geom_vline(xintercept = 2017, linetype = "dashed", color = "gray") +
+  labs(title = "Obesity Trends by MMSA (BMI ≥ 30)",
+       y = "Obesity Rate", x = "Year", color = "Philadelphia") +
+  theme_minimal() +geom_smooth()
+```
 
 
 ```{r}
-counties <- read_csv("~/Downloads/Maryland2020.csv")
-counties2023 <- read_csv("~/Downloads/Maryland2023.csv")
-counties <- counties %>% filter(COUNTY %in% c("510")) %>% filter(YEAR >= 4) %>% filter(YEAR != 13) %>%  mutate(YEAR = ifelse(YEAR == 14, 13, YEAR)) %>%
-  mutate(YEAR = YEAR + 2007)
-counties2023 <- counties2023 %>% filter(COUNTY %in% c("510"))  %>% filter(YEAR >= 3) %>%
-  mutate(YEAR = YEAR + 2018)
 
-counties <- bind_rows(counties, counties2023)
-
-counties <- counties %>%
-  mutate(
-    under_18 = UNDER5_TOT + AGE513_TOT + AGE1417_TOT,
-    over_64 = AGE65PLUS_TOT,
-    working_age = POPESTIMATE - under_18 - over_64,
-    age_dependency_ratio = ((under_18 + over_64) / working_age) * 100
+dental_df <- brfss_division_filtered %>%
+  filter(
+    question == "Adults that have had any permanent teeth extracted (variable calculated from one or more BRFSS questions)",
+    response == "Yes",
+    break_out == "Overall"
   ) %>%
-  mutate(
-    child_dependency_ratio = (under_18 / working_age) * 100
-  ) %>%
-  mutate(
-    old_age_dependency_ratio = (over_64 / working_age) * 100
-  )
-median_age_by_county <- counties %>% 
-  group_by(CTYNAME, YEAR) %>%
-  summarise(
-    median_age = median(MEDIAN_AGE_TOT, na.rm = TRUE),
-    .groups = "drop"
-  )
+  select(year, locationdesc, data_value, treated, post)
+dental_df <- dental_df %>%
+  mutate(did = treated * post)
+model_dental_fe <- lm(data_value ~ treated * post + factor(locationdesc) + factor(year), data = dental_df)
+summary(model_dental_fe)
 
-print(median_age_by_county)
-
+ggplot(dental_df, aes(x = year, y = data_value, color = as.factor(treated))) +
+  stat_summary(fun = mean, geom = "line") +
+  geom_vline(xintercept = 2017, linetype = "dashed", color = "gray") +
+  labs(title = "Tooth Extraction Trends: Treated vs Control Divisions",
+       y = "% Adults with Any Teeth Extracted",
+       x = "Year",
+       color = "Philadelphia") +
+  theme_minimal()
 ```
-My county list: 
-NY: New York County, Bronx, Kings, Queens
-NJ: Hudson, Essex
-Pennsylvania: Philadelphia
-Massachusetts: Suffolk
-Maryland: Baltimore City
-
-```{r}
-
-library(tidycensus)
-census_api_key("API_KEY")
-
-#Thank you census bureau for firing the person responsible for maintaining AI key infrastructure
 
 
-```
+
+
