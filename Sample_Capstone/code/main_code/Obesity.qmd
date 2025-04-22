@@ -8,36 +8,41 @@ Week updates: I updated my Code, integrated BRFSS data and plotted synthetic con
 
 ```{r}
 library(tidyverse)
+library(Synth)
 obesity <- read_csv("~/Downloads/DataSciCapstoneDataset - Sheet1-2.csv")
 ```
 
-```{r}
-ggplot(obesity, aes(x = Year, y = median_age, color = Treatment)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +  
-  labs(
-    title = "Median Age Trends by County (Linear Regression)",
-    x = "Year",
-    y = "Median Age"
-  ) +
-  theme_minimal()
-```
+# ```{r}
+# ggplot(obesity, aes(x = Year, y = median_age, color = Treatment)) +
+#   geom_point() +
+#   geom_smooth(method = "lm", se = FALSE) +  
+#   labs(
+#     title = "Median Age Trends by County (Linear Regression)",
+#     x = "Year",
+#     y = "Median Age"
+#   ) +
+#   theme_minimal()
+# ```
 
 ```{r}
 
 
 obesity$Post <- ifelse(obesity$Year >= 2017, 1, 0)
 
-did_model <- lm(log1p(Obesity) ~ Post * Treatment +factor(Year)+ factor(County) + Income_Per_Cap, data = obesity) 
+did_model <- lm((Obesity) ~ Post * Treatment +factor(Year)+ factor(County), data = obesity) 
 
 summary(did_model)
 
 
-did_model2 <- lm(log1p(Diabetes) ~ Post * Treatment +factor(Year)+ factor(County), data = obesity) 
+did_model2 <- lm((Diabetes) ~ Post * Treatment +factor(Year)+ factor(County), data = obesity) 
 
 summary(did_model2)
 
+library("lmtest")
+library("sandwich")
 
+TestCount <- coeftest(did_model, vcov = vcovHAC(did_model))
+TestCount
 
 ```
 
@@ -46,27 +51,36 @@ summary(did_model2)
 summary_df <- obesity %>%
   group_by(Year, Treatment) %>%
   summarise(
-    mean_obesity = mean(Obesity, na.rm = TRUE),
-    se_obesity = sd(Obesity, na.rm = TRUE) / sqrt(n())
+    mean_obesity = mean(Obesity, na.rm = TRUE)
   )
 
 
 ggplot(summary_df, aes(x = Year, y = mean_obesity, color = Treatment, group = Treatment)) +
-  geom_line(size = 1.2) +
-  geom_point(size = 2) +
-  geom_errorbar(aes(ymin = mean_obesity - se_obesity,
-                    ymax = mean_obesity + se_obesity),
-                width = 0.3) +geom_vline(xintercept = 2017, linetype = "dashed")+
+  geom_line() +
+  geom_point() +
   labs(
     title = "Difference-in-Differences: Obesity Trends",
+    subtitle = "Philly vs Control Mean",
+    caption = "CDC Data",
     y = "Average Obesity Rate",
     x = "Year",
     color = "Group"
   ) +
-  theme_minimal(base_size = 14) +geom_smooth()
+  theme_minimal() +geom_vline(xintercept = 2017)
 
-ggplot(obesity, aes(x = Year, y = Obesity, color = County, group = County)) +geom_line() +theme_minimal()
+summary_df <- obesity %>%
+  group_by(Year) %>%
+  summarise(
+    mean_obesity = mean(Obesity, na.rm = TRUE),
+    mean_diabetes = mean(Diabetes, na.rm=TRUE)
+  )
+
+summary_df <- summary_df %>% filter(Year <=2017)
+ggplot(summary_df, aes(x = Year, y = mean_obesity)) +geom_line(aes(color = "red")) +theme_minimal() + labs(title = "Average Obesity per Year in Sample Counties", subtitle = "2004-2017", x = "Obesity Rate", y = "Year", caption = "CDC Data")
+ggplot(summary_df, aes(x = Year, y = mean_diabetes)) +geom_line(aes(color = "red")) +theme_minimal() + labs(title = "Average Diabetes Rate per Year in Sample Counties", subtitle = "2004-2017", x = "Diabetes Rate", y = "Year", caption = "CDC Data")
 ```
+
+
 
 ```{r}
 # counties <- read_csv("~/Downloads/Maryland2020.csv")
@@ -104,25 +118,17 @@ ggplot(obesity, aes(x = Year, y = Obesity, color = County, group = County)) +geo
 
 My county list: NY: New York County, Bronx, Kings, Queens NJ: Hudson, Essex Pennsylvania: Philadelphia Massachusetts: Suffolk Maryland: Baltimore City
 
-```{r}
-# 
-# library(tidycensus)
-# census_api_key("API_KEY")
-# 
-# #Thank you census bureau for firing the person responsible for maintaining AI key infrastructure
-# 
 
-```
 
 ```{r}
 
 library(Synth)
 
 
-df <- read_csv("~/Downloads/cleaned_obesity_data.csv") %>%
+df <- read_csv("~/Downloads/DataSciCapstoneDataset - Sheet1-2.csv") %>%
   mutate(unit_id = as.numeric(as.factor(County))) %>%
-  select(unit_id, County, Year, Obesity, Diabetes, median_age, PoorFairHealth) %>%
-  filter(!is.na(Obesity), !is.na(Diabetes), !is.na(median_age), !is.na(PoorFairHealth)) %>%
+  select(unit_id, County, Year, Income_Per_Cap, Obesity, median_age, PoorFairHealth) %>%
+  filter(!is.na(Obesity), !is.na(Income_Per_Cap), !is.na(median_age), !is.na(PoorFairHealth)) %>%
   as.data.frame()
 
 
@@ -132,7 +138,7 @@ control_ids <- df %>% filter(County != "Philadelphia") %>% pull(unit_id) %>% uni
 
 dataprep_out <- dataprep(
   foo = df,
-  predictors = c("Diabetes", "median_age", "PoorFairHealth"),
+  predictors = c("median_age","Income_Per_Cap", "PoorFairHealth"),
   dependent = "Obesity",
   unit.variable = "unit_id",
   time.variable = "Year",
@@ -155,13 +161,76 @@ path.plot(
   Legend = c("Philadelphia", "Synthetic Control"),
   Legend.position = "bottomright"
 )
+abline(v = 2017, lty = 2, col = "red", lwd = 2)
 
+
+gaps.plot(
+  synth.res = synth_out,
+  dataprep.res = dataprep_out,
+  Ylab = "Gap (Philadelphia - Synthetic Control)",
+  Xlab = "Year",
+  Main = "Gap in Obesity Rate Over Time",
+)
+
+
+abline(v = 2017, lty = 2, col = "red", lwd = 2)
 ```
+```{r}
 
+
+df <- read_csv("~/Downloads/DataSciCapstoneDataset - Sheet1-2.csv") %>%
+  mutate(unit_id = as.numeric(as.factor(County))) %>%
+  select(unit_id, County, Year, Income_Per_Cap, Diabetes, median_age, PoorFairHealth) %>%
+  filter(!is.na(Diabetes), !is.na(Income_Per_Cap), !is.na(median_age), !is.na(PoorFairHealth)) %>%
+  as.data.frame()
+
+
+philly_id <- df %>% filter(County == "Philadelphia") %>% pull(unit_id) %>% unique()
+control_ids <- df %>% filter(County != "Philadelphia") %>% pull(unit_id) %>% unique()
+
+
+dataprep_out <- dataprep(
+  foo = df,
+  predictors = c("median_age","Income_Per_Cap", "PoorFairHealth"),
+  dependent = "Diabetes",
+  unit.variable = "unit_id",
+  time.variable = "Year",
+  treatment.identifier = philly_id,
+  controls.identifier = control_ids,
+  time.predictors.prior = 2011:2016,
+  time.optimize.ssr = 2011:2016,
+  time.plot = 2011:2021
+)
+
+
+synth_out <- synth(dataprep_out)
+
+
+path.plot(
+  synth.res = synth_out,
+  dataprep.res = dataprep_out,
+  Ylab = "Diabetes Rate",
+  Xlab = "Year",
+  Legend = c("Philadelphia", "Synthetic Control"),
+  Legend.position = "bottomright"
+)
+abline(v = 2017, lty = 2, col = "red", lwd = 2)
+
+gaps.plot(
+  synth.res = synth_out,
+  dataprep.res = dataprep_out,
+  Ylab = "Gap (Philadelphia - Synthetic Control)",
+  Xlab = "Year",
+  Main = "Gap in Diabetes Rate Over Time",
+)
+
+
+abline(v = 2017, lty = 2, col = "red", lwd = 2)
+```
 ```{r}
 library(janitor)
 brfss <- read_csv("~/Downloads/Behavioral_Risk_Factors__Selected_Metropolitan_Area_Risk_Trends__SMART__MMSA_Age-adjusted_Prevalence_Data__2011_to_Present__20250414.csv") 
-
+brfss_nat <- brfss
 
 brfss <- brfss %>%
   clean_names() %>%
@@ -224,8 +293,8 @@ modelsummary(model,
     "post" = "Post-2017",
     "treated:post" = "Treated × Post (DiD Estimate)"
   ),
-  gof_omit = "Adj|AIC|BIC|Log|F|RMSE", # hides extra stats
-  statistic = "({std.error})",         # show standard errors in parentheses
+  gof_omit = "Adj|AIC|BIC|Log|F|RMSE", 
+  statistic = "({std.error})",      
   stars = TRUE
 )
 summary(model)
@@ -252,6 +321,10 @@ dental_df <- dental_df %>%
 model_dental_fe <- lm(data_value ~ treated * post + factor(locationdesc) + factor(year), data = dental_df)
 summary(model_dental_fe)
 
+
+TestCount2 <- coeftest(model_dental_fe, vcov = vcovHAC(model_dental_fe))
+TestCount2
+
 ggplot(dental_df, aes(x = year, y = data_value, color = as.factor(treated))) +
   stat_summary(fun = mean, geom = "line") +
   geom_vline(xintercept = 2017, linetype = "dashed", color = "gray") +
@@ -263,5 +336,57 @@ ggplot(dental_df, aes(x = year, y = data_value, color = as.factor(treated))) +
 ```
 
 
+```{r}
 
+diabetes_df <- brfss_division_filtered %>%
+  filter(
+    question == "Have you ever been told by a doctor that you have diabetes?",
+    response == "Yes",
+    break_out == "Overall"
+  ) %>%
+  select(year, locationdesc, data_value, treated, post)
+diabetes_df <- diabetes_df %>%
+  mutate(did = treated * post)
+model_diabetes_fe <- lm(data_value ~ treated * post + factor(locationdesc) + factor(year), data = diabetes_df)
+summary(model_diabetes_fe)
+modelsummary(model_diabetes_fe,
+  title = "Difference-in-Differences: Effect of Soda Tax on Diabetes",
+  coef_map = c(
+    "treated" = "Philadelphia (Treated)",
+    "post" = "Post-2017",
+    "treated:post" = "Treated × Post (DiD Estimate)"
+  ),
+  gof_omit = "Adj|AIC|BIC|Log|F|RMSE", 
+  statistic = "({std.error})",      
+  stars = TRUE
+)
+ggplot(diabetes_df, aes(x = year, y = data_value, color = as.factor(treated))) +
+  stat_summary(fun = mean, geom = "line") +
+  geom_vline(xintercept = 2017, linetype = "dashed", color = "gray") +
+  labs(title = "Diabetes Trends: Treated vs Control Divisions",
+       y = "% Adults with diabetes",
+       x = "Year",
+       color = "Philadelphia") +
+  theme_minimal()
+```
+
+# ```{r}
+# brfss_nat_obese <- brfss_nat %>%
+#   filter(
+#     Question == "Weight classification by Body Mass Index (BMI) (variable calculated from one or more BRFSS questions)",
+#     Response == "Obese (BMI 30.0 - 99.8)",
+#     Break_Out == "Overall"
+#   ) %>%
+#   select(Year, Locationdesc, Data_value)
+# 
+# ggplot(brfss_nat_obese, aes(x = Year, y = Data_value, color = as.factor(Treated))) +
+#   stat_summary(fun = mean, geom = "line") +
+#   geom_vline(xintercept = 2017, linetype = "dashed", color = "gray") +
+#   labs(title = "Diabetes Trends: Treated vs Control Divisions",
+#        y = "% Adults with diabetes",
+#        x = "Year",
+#        color = "Philadelphia") +
+#   theme_minimal()
+# 
+# ```
 
