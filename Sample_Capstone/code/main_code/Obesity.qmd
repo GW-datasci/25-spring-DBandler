@@ -25,24 +25,62 @@ obesity <- read_csv("~/Downloads/DataSciCapstoneDataset - Sheet1-2.csv")
 # ```
 
 ```{r}
+#obesity <- obesity %>% filter(Year >= 2008)
+obesity$Post <- ifelse(obesity$Year >= 2017, 1, 0) 
 
-
-obesity$Post <- ifelse(obesity$Year >= 2017, 1, 0)
 
 did_model <- lm((Obesity) ~ Post * Treatment +factor(Year)+ factor(County), data = obesity) 
 
-summary(did_model)
 
 
+obesity$Diabetes <- obesity$Diabetes / 100
 did_model2 <- lm((Diabetes) ~ Post * Treatment +factor(Year)+ factor(County), data = obesity) 
 
-summary(did_model2)
+
 
 library("lmtest")
 library("sandwich")
 
 TestCount <- coeftest(did_model, vcov = vcovHAC(did_model))
 TestCount
+
+TestCount2 <- coeftest(did_model2, vcov = vcovHAC(did_model2))
+TestCount2
+
+```
+```{r}
+
+obesity <- obesity %>%
+  mutate(event_time = Year - 2017) 
+
+obesity <- obesity %>%
+  mutate(event_time_factor = factor(event_time))
+
+did_event_model <- lm(Obesity ~ Treatment * event_time_factor + factor(County) + factor(Year), data = obesity)
+did_event_model
+
+library(broom)
+
+
+event_study_df <- tidy(did_event_model) %>%
+  filter(grepl("Treatment:event_time_factor", term)) %>% mutate(year = as.numeric(gsub(".*event_time_factor", "", term)))
+
+
+ggplot(event_study_df, aes(x = year, y = estimate)) +
+  geom_line() +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Lagged Effects of Sugar Tax on Obesity",
+    x = "Years Since Treatment (event time)",
+    y = "Estimated Treatment Effect",
+    subtitle = "95% Confidence Intervals",
+    caption = "CDC Data"
+  ) +
+  geom_errorbar(aes(
+    ymin = estimate - 1.96 * std.error,
+    ymax = estimate + 1.96 * std.error
+  ), width = 0.2) + theme_minimal() + geom_vline(xintercept = 0, color = "red")
 
 ```
 
@@ -54,34 +92,65 @@ summary_df <- obesity %>%
     mean_obesity = mean(Obesity, na.rm = TRUE)
   )
 
+summary_df$Post <- ifelse(summary_df$Year >= 2017, 1, 0) 
 
 ggplot(summary_df, aes(x = Year, y = mean_obesity, color = Treatment, group = Treatment)) +
   geom_line() +
-  geom_point() +
   labs(
     title = "Difference-in-Differences: Obesity Trends",
     subtitle = "Philly vs Control Mean",
     caption = "CDC Data",
-    y = "Average Obesity Rate",
+    y = "Obesity Rate",
     x = "Year",
     color = "Group"
   ) +
   theme_minimal() +geom_vline(xintercept = 2017)
 
-summary_df <- obesity %>%
-  group_by(Year) %>%
-  summarise(
-    mean_obesity = mean(Obesity, na.rm = TRUE),
-    mean_diabetes = mean(Diabetes, na.rm=TRUE)
-  )
 
-summary_df <- summary_df %>% filter(Year <=2017)
-ggplot(summary_df, aes(x = Year, y = mean_obesity)) +geom_line(aes(color = "red")) +theme_minimal() + labs(title = "Average Obesity per Year in Sample Counties", subtitle = "2004-2017", x = "Obesity Rate", y = "Year", caption = "CDC Data")
-ggplot(summary_df, aes(x = Year, y = mean_diabetes)) +geom_line(aes(color = "red")) +theme_minimal() + labs(title = "Average Diabetes Rate per Year in Sample Counties", subtitle = "2004-2017", x = "Diabetes Rate", y = "Year", caption = "CDC Data")
+ggplot(summary_df, aes(x = Year, y = (mean_obesity), color = Treatment)) +
+  geom_smooth(method = "lm", aes(linetype = factor(Post)), se = FALSE)  +theme_minimal() +geom_vline(xintercept = 2019) + geom_line() +
+  labs(
+    title = "Difference-in-Differences: Obesity Trends",
+    subtitle = "Philly vs Control Mean",
+    caption = "CDC Data",
+    y = "Obesity Rate",
+    x = "Year",
+    linetype = "Before/After") 
+
+
+# summary_df <- obesity %>%
+#   group_by(Year) %>%
+#   summarise(
+#     mean_obesity = mean(Obesity, na.rm = TRUE),
+#     mean_diabetes = mean(Diabetes, na.rm=TRUE)
+#   )
+# 
+# summary_df <- summary_df %>% filter(Year <=2017)
+# ggplot(summary_df, aes(x = Year, y = mean_obesity)) +geom_line(aes(color = "red")) +theme_minimal() + labs(title = "Average Obesity per Year in Sample Counties", subtitle = "2004-2017", x = "Obesity Rate", y = "Year", caption = "CDC Data")
+# ggplot(summary_df, aes(x = Year, y = mean_diabetes)) +geom_line(aes(color = "red")) +theme_minimal() + labs(title = "Average Diabetes Rate per Year in Sample Counties", subtitle = "2004-2017", x = "Diabetes Rate", y = "Year", caption = "CDC Data")
 ```
 
 
+```{r}
 
+obesity %>%
+  mutate(
+    Post = ifelse(Year >= 2017, 1, 0)
+  ) %>%
+  group_by(Treatment, Post) %>%
+  summarize(
+    mean_obesity = mean(Obesity, na.rm = TRUE),
+    sd_obesity = sd(Obesity, na.rm = TRUE),
+    mean_diabetes = mean(Diabetes, na.rm = TRUE),
+    sd_diabetes = sd(Diabetes, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  )
+  
+
+
+
+```
 ```{r}
 # counties <- read_csv("~/Downloads/Maryland2020.csv")
 # counties2023 <- read_csv("~/Downloads/Maryland2023.csv")
@@ -159,7 +228,8 @@ path.plot(
   Ylab = "Obesity Rate",
   Xlab = "Year",
   Legend = c("Philadelphia", "Synthetic Control"),
-  Legend.position = "bottomright"
+  Legend.position = "bottomright",
+  Main = "Obesity, Synthetic Control"
 )
 abline(v = 2017, lty = 2, col = "red", lwd = 2)
 
@@ -174,7 +244,38 @@ gaps.plot(
 
 
 abline(v = 2017, lty = 2, col = "red", lwd = 2)
+
+df %>%
+  filter(County != "Philadelphia") %>%
+  distinct(unit_id, County) %>%
+  arrange(unit_id)
+
+
+
+
 ```
+
+```{r}
+
+df_diff <- df %>%
+  arrange(unit_id, Year) %>%
+  group_by(unit_id) %>%
+  mutate(
+    dObesity = Obesity - lag(Obesity)
+  ) %>%
+  filter(!is.na(dObesity)) %>%
+  ungroup()
+
+df_diff <- df_diff %>%
+  mutate(
+    Treated = ifelse(County == "Philadelphia", 1, 0),
+    Post = ifelse(Year >= 2017, 1, 0)
+  )
+did_model_diff <- lm(dObesity ~ Treated * Post + factor(County) + factor(Year), data = df_diff)
+
+summary(did_model_diff)
+```
+
 ```{r}
 
 
@@ -212,7 +313,8 @@ path.plot(
   Ylab = "Diabetes Rate",
   Xlab = "Year",
   Legend = c("Philadelphia", "Synthetic Control"),
-  Legend.position = "bottomright"
+  Legend.position = "bottomright",
+  Main = "Diabetes, Synthetic Control"
 )
 abline(v = 2017, lty = 2, col = "red", lwd = 2)
 
@@ -306,7 +408,10 @@ ggplot(obesity_df_strict, aes(x = year, y = data_value, color = as.factor(treate
   theme_minimal() +geom_smooth()
 ```
 
-
+```{r}
+library (survey)
+library (haven)
+```
 ```{r}
 
 dental_df <- brfss_division_filtered %>%
